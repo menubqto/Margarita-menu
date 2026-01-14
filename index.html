@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Margarita Restaurant & Lounge</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons (Versión UMD para navegador) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Personalizaciones adicionales para scrollbars oscuros */
+        body {
+            background-color: #09090b; /* zinc-950 */
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #18181b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f59e0b; 
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- IMPORTANTE: data-type="module" permite usar imports de Firebase -->
+    <script type="text/babel" data-type="module">
+        // Importamos React y Hooks desde el objeto global
+        const { useState, useEffect } = React;
+
+        // --- IMPORTACIONES DE FIREBASE DESDE CDN ---
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
+        // ------------------------------------------------------------------
+        // TUS CREDENCIALES DE FIREBASE (Configuración corregida)
+        // ------------------------------------------------------------------
+        const firebaseConfig = {
+            apiKey: "AIzaSyBSkvxKRT5t6QH1vo5aWXdcAKmcqtDpnaM",
+            authDomain: "margarita-menu.firebaseapp.com",
+            projectId: "margarita-menu",
+            storageBucket: "margarita-menu.firebasestorage.app",
+            messagingSenderId: "136135175040",
+            appId: "1:136135175040:web:776e065ecaf294aa0faf65"
+        };
+        // ------------------------------------------------------------------
+
+        // Inicialización segura de Firebase
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (error) {
+            console.error("Error inicializando Firebase.", error);
+        }
+
+        // Configuración de la base de datos
+        const APP_ID = 'margarita-menu-v1'; 
+        const COLLECTION_NAME = 'menu_data';
+        const DOC_ID = 'main_menu';
+
+        // --- ICONOS ---
+        // Helper para Lucide
+        const LucideIcon = ({ name, className, ...props }) => {
+            const iconData = lucide.icons[name];
+            if (!iconData) return null;
+            return (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+                    {iconData.map((child, index) => {
+                        const [tag, attrs] = child;
+                        return React.createElement(tag, { ...attrs, key: index });
+                    })}
+                </svg>
+            );
+        };
+
+        // Iconos Lucide simples
+        const Utensils = (p) => <LucideIcon name="Utensils" {...p} />;
+        const Pizza = (p) => <LucideIcon name="Pizza" {...p} />;
+        const Beer = (p) => <LucideIcon name="Beer" {...p} />;
+        const Wine = (p) => <LucideIcon name="Wine" {...p} />;
+        const Coffee = (p) => <LucideIcon name="Coffee" {...p} />;
+        const Phone = (p) => <LucideIcon name="Phone" {...p} />;
+        const Instagram = (p) => <LucideIcon name="Instagram" {...p} />;
+        const ChevronDown = (p) => <LucideIcon name="ChevronDown" {...p} />;
+        const ChevronUp = (p) => <LucideIcon name="ChevronUp" {...p} />;
+        const Salad = (p) => <LucideIcon name="Salad" {...p} />;
+        const Drumstick = (p) => <LucideIcon name="Drumstick" {...p} />;
+        const GlassWater = (p) => <LucideIcon name="GlassWater" {...p} />;
+        const Cigarette = (p) => <LucideIcon name="Cigarette" {...p} />;
+        const Settings = (p) => <LucideIcon name="Settings" {...p} />;
+        const Plus = (p) => <LucideIcon name="Plus" {...p} />;
+        const Trash2 = (p) => <LucideIcon name="Trash2" {...p} />;
+        const Save = (p) => <LucideIcon name="Save" {...p} />;
+        const Lock = (p) => <LucideIcon name="Lock" {...p} />;
+        const X = (p) => <LucideIcon name="X" {...p} />;
+        const RotateCcw = (p) => <LucideIcon name="RotateCcw" {...p} />;
+        const IceCream = (p) => <LucideIcon name="IceCream" {...p} />;
+        const Beef = (p) => <LucideIcon name="Beef" {...p} />;
+        const Soup = (p) => <LucideIcon name="Soup" {...p} />;
+        const Eye = (p) => <LucideIcon name="Eye" {...p} />;
+        const EyeOff = (p) => <LucideIcon name="EyeOff" {...p} />;
+        const Loader2 = (p) => <LucideIcon name="Loader2" {...p} />;
+
+        // Iconos SVG Personalizados
+        const MargaritaIcon = (props) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><g stroke="white"><path d="M12 2v4" strokeWidth="3" /><path d="M12 18v4" strokeWidth="3" /><path d="M2 12h4" strokeWidth="3" /><path d="M18 12h4" strokeWidth="3" /><path d="M4.9 4.9l2.8 2.8" strokeWidth="3" /><path d="M16.3 16.3l2.8 2.8" strokeWidth="3" /><path d="M4.9 19.1l2.8-2.8" strokeWidth="3" /><path d="M16.3 7.7l2.8-2.8" strokeWidth="3" /></g><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" /></svg>
+        );
+        const CalzoneIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 14c0-5 4-9 9-9s9 4 9 9" /><path d="M3 14h18" /><path d="M3 14c0 2.5 2 4 5 4h8c3 0 5-1.5 5-4" /><path d="M8 14v-2" /><path d="M16 14v-2" /><path d="M12 14v-3" /></svg>);
+        const PastaIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M4 16h16c0 2.5-3.5 4-8 4s-8-1.5-8-4" /><path d="M6 16c0-3.5 2-6 6-6s6 2.5 6 6" /><path d="M12 4v8" /><path d="M9 7l3 3 3-3" /></svg>);
+        const BreadIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="8" cy="14" r="5" /><circle cx="16" cy="14" r="5" /><path d="M8 12a2 2 0 0 1 0 4" /><path d="M16 12a2 2 0 0 1 0 4" /></svg>);
+        const BurgerIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M6 13h12v2H6z" fill="currentColor" fillOpacity="0.2" stroke="none" /><path d="M4 10c0-3 2.5-5 8-5s8 2 8 5H4z" /><path d="M4 15h16" /><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" /><line x1="6" y1="13" x2="18" y2="13" /></svg>);
+        const PepitoIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="2" y="8" width="20" height="8" rx="4" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M6 8l2-2" /><path d="M10 8l2-2" /><path d="M14 8l2-2" /><path d="M18 8l2-2" /></svg>);
+        const HotDogIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M4 14a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2z" /><path d="M2 12h20" strokeWidth="2" strokeLinecap="round" className="text-amber-600" /><path d="M7 12c1-1 2-1 3 0s2 1 3 0 2-1 3 0" strokeWidth="1.5" /></svg>);
+        const SushiIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="7" cy="15" r="4" /><circle cx="17" cy="15" r="4" /><circle cx="12" cy="9" r="4" /><circle cx="7" cy="15" r="1.5" fill="currentColor" /><circle cx="17" cy="15" r="1.5" fill="currentColor" /><circle cx="12" cy="9" r="1.5" fill="currentColor" /></svg>);
+        const TacoIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M2 16c0-5.5 4.5-10 10-10s10 4.5 10 10" /><path d="M3 16h18" /><path d="M7 16c0-2 1.5-4 5-4s5 2 5 4" strokeDasharray="2 2" /></svg>);
+        const FishIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M2 12s4-5 9-5 9 5 9 5-4 5-9 5-9-5-9-5" /><circle cx="16" cy="12" r="2" /><path d="M21 12l2-2" /><path d="M21 12l2 2" /></svg>);
+        const DessertIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12 21a9 9 0 0 0 9-9c0-4.97-4.03-9-9-9s-9 4.03-9 9a9 9 0 0 0 9 9z" /><path d="M12 3v9h9" /><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" opacity="0.5"/></svg>);
+
+        // Tipos de Categoría con referencia al componente
+        const CATEGORY_TYPES = [
+            { id: 'salad', label: 'Ensalada', icon: Salad },
+            { id: 'chicken', label: 'Pollo', icon: Drumstick },
+            { id: 'burger', label: 'Hamburguesa', icon: BurgerIcon },
+            { id: 'pepito', label: 'Pepito', icon: PepitoIcon },
+            { id: 'hotdog', label: 'Perro Caliente', icon: HotDogIcon },
+            { id: 'sushi', label: 'Sushi', icon: SushiIcon },
+            { id: 'pizza', label: 'Pizza', icon: Pizza },
+            { id: 'pasta', label: 'Pasta', icon: PastaIcon },
+            { id: 'calzone', label: 'Calzone', icon: CalzoneIcon },
+            { id: 'taco', label: 'Taco', icon: TacoIcon },
+            { id: 'steak', label: 'Carne', icon: Beef },
+            { id: 'fish', label: 'Pescado', icon: FishIcon },
+            { id: 'soup', label: 'Sopa', icon: Soup },
+            { id: 'bread', label: 'Pan/Extras', icon: BreadIcon },
+            { id: 'dessert', label: 'Postre', icon: DessertIcon },
+            { id: 'coffee', label: 'Café/Bebida', icon: Coffee },
+            { id: 'beer', label: 'Cerveza', icon: Beer },
+            { id: 'glass', label: 'Trago', icon: GlassWater },
+            { id: 'wine', label: 'Botella', icon: Wine },
+            { id: 'cigarette', label: 'Arguile', icon: Cigarette },
+        ];
+
+        // Datos Iniciales (Se suben solo si la DB está vacía)
+        const INITIAL_MENU_DATA = [
+            { category: "Ensaladas", type: "salad", visible: true, items: [{ name: "Cesar con Pollo", description: "Lechuga Romana, croutons dorados, parmesano, aderezo cesar, pollo a la plancha.", price: 8 }, { name: "Capresse", description: "Tomate en rodajas, queso mozzarella y albahaca con aceite de oliva.", price: 8 }] },
+            { category: "Hamburguesas", type: "burger", visible: false, items: [{ name: "Margarita Burger", description: "Carne angus, queso cheddar, cebolla caramelizada, tocineta y salsa de la casa.", price: 10 }, { name: "Clásica", description: "Carne, queso, lechuga, tomate y salsas.", price: 8 }] },
+            { category: "Pepitos", type: "pepito", visible: false, items: [{ name: "Pepito Mixto", description: "Pan baguette, lomito, pollo, chuleta, queso pecorino, papas y salsas.", price: 12 }, { name: "Pepito de Lomito", description: "Pan baguette, tiras de lomito, queso gratinado y maíz.", price: 11 }] },
+            { category: "Perros Calientes", type: "hotdog", visible: false, items: [{ name: "Perro Especial", description: "Salchicha polaca, carne molida, queso amarillo, cebolla y papitas.", price: 5 }] },
+            { category: "Pollo", type: "chicken", visible: true, items: [{ name: "Nuggets de Pollo", description: "Cuadraditos de pollo crujiente, acompañado con papas fritas y salsa de la casa.", price: 7 }, { name: "Pollo a la Margarita", description: "Pollo a la plancha gratinado, con aderezo de la casa, papas fritas y ensalada.", price: 8 }, { name: "Pollo a la Canasta", description: "Pollo empanizado frito, acompañado con papas fritas y ensalada.", price: 8 }, { name: "Tender de Pollo", description: "Tiritas de pollo crujiente, acompañado con papas fritas y salsa de la casa.", price: 8 }] },
+            { category: "Calzones", type: "calzone", visible: true, items: [{ name: "Calzones", description: "Salsa de la casa, queso mozzarella y dos ingredientes a elección.", price: 6.5 }] },
+            { category: "Pizzas", type: "pizza", visible: true, items: [{ name: "Margarita", description: "Salsa de la casa y queso mozzarella.", price: 7 }, { name: "Jamón", description: "Salsa de la casa, queso mozzarella y jamón.", price: 8 }, { name: "Pepperoni", description: "Salsa de la casa, queso mozzarella y pepperoni.", price: 9 }, { name: "Hawaiana", description: "Salsa de la casa, queso mozzarella, jamón y piña.", price: 9 }, { name: "Primavera", description: "Salsa de la casa, queso mozzarella, tocineta, jamón y maíz.", price: 10 }, { name: "Vegetariana", description: "Salsa de la casa, queso mozzarella, aceitunas, pimentón, cebolla y maíz.", price: 10 }, { name: "Capresse", description: "Salsa de la casa, queso mozzarella, tomate, parmesano y pesto.", price: 10 }, { name: "Rúcula", description: "Salsa de la casa, queso Mozzarella, aceitunas, champiñones, rúcula y parmesano.", price: 10 }, { name: "Prosciutto", description: "Salsa de la casa, queso mozzarella, jamón serrano, rúcula y parmesano.", price: 12 }, { name: "Caprichosa", description: "Salsa de la casa, mozzarella, champiñones, salchichón, jamón y anchoas.", price: 12 }, { name: "Margarita Sublime", description: "Salsa, mozzarella, tocineta, pepperoni, jamón ahumado, maíz y crema de leche.", price: 12 }] },
+            { category: "Sushi", type: "sushi", visible: false, items: [{ name: "California Roll", description: "Cangrejo, pepino, aguacate y sésamo.", price: 10 }, { name: "Margarita Roll", description: "Salmón fresco, queso crema, tope de aguacate y topping de dinamita.", price: 14 }] },
+            { category: "Pastas", type: "pasta", visible: true, items: [{ name: "Pasta Boloñesa", description: "Salsa de la casa, tomate, carne de res & cerdo y parmesano.", price: 8 }, { name: "Pasta Napolitana", description: "Salsa de la casa, tomate y parmesano.", price: 8 }, { name: "Pasta Carbonara", description: "Salsa de la casa, cebolla, guanciale y parmesano.", price: 8 }, { name: "Pasta con Pesto", description: "Salsa de la casa, pesto y parmesano.", price: 8 }, { name: "Pasticho", description: "Clásico pasticho de la casa.", price: 8 }] },
+            { category: "Acompañamientos", type: "bread", visible: true, items: [{ name: "Pan a Ajillo", description: "", price: 3 }, { name: "Papas Fritas", description: "", price: 5 }, { name: "Tequeños", description: "", price: 6 }] },
+            { category: "Bebidas", type: "coffee", visible: true, items: [{ name: "Refresco Botella 350ml", description: "", price: 1 }, { name: "Agua Mineral 355ml", description: "", price: 1.5 }, { name: "Refresco Lata", description: "", price: 2 }, { name: "Nescafé", description: "", price: 2 }, { name: "Té Lipton", description: "", price: 3 }, { name: "Refresco 1.5L", description: "", price: 3.5 }] },
+            { category: "Cervezas", type: "beer", visible: true, items: [{ name: "Polar Negrita/Light/Azul", description: "Botella individual", price: 1.1 }, { name: "Solera Verde", description: "Botella individual", price: 1.4 }, { name: "Tobo 10 Unidades", description: "Negrita, Light o Azul", price: 10 }] },
+            { category: "Tragos", type: "glass", visible: true, items: [{ name: "Sangría", description: "Copa", price: 2.5 }, { name: "Ron", description: "Servicio individual", price: 4 }, { name: "Tequila", description: "Shot/Servicio", price: 5 }, { name: "Margarita", description: "Coctel de la casa", price: 5 }, { name: "Whisky", description: "Servicio individual", price: 6 }] },
+            { category: "Servicios (Botellas)", type: "wine", visible: true, items: [{ name: "Jarra Sangría", description: "", price: 10 }, { name: "Vino Tinto", description: "", price: 16 }, { name: "Santa Teresa", description: "Botella", price: 24 }, { name: "Silver Parr 8 años", description: "Botella", price: 35 }, { name: "Old Parr 12 años", description: "Botella", price: 45 }, { name: "Buchanan's 12 años", description: "Botella", price: 47 }] },
+            { category: "Arguile", type: "cigarette", visible: true, items: [{ name: "Servicio de Arguile", description: "Consultar sabores disponibles", price: 8 }] }
+        ];
+
+        const getIconByType = (type) => {
+            const props = { className: "w-6 h-6" };
+            const found = CATEGORY_TYPES.find(c => c.id === type);
+            if (found) {
+                // Instanciamos el componente correctamente
+                return React.createElement(found.icon, props);
+            }
+            return React.createElement(Utensils, props);
+        };
+
+        function App() {
+            const [openCategory, setOpenCategory] = useState(null);
+            const [menuData, setMenuData] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [user, setUser] = useState(null);
+            const [isAdmin, setIsAdmin] = useState(false);
+            const [showLogin, setShowLogin] = useState(false);
+            const [passwordInput, setPasswordInput] = useState("");
+            const [loginError, setLoginError] = useState(false);
+            
+            const [showAddCatModal, setShowAddCatModal] = useState(false);
+            const [newCatName, setNewCatName] = useState("");
+            const [newCatType, setNewCatType] = useState("burger");
+
+            // 1. Auth Anónima
+            useEffect(() => {
+                signInAnonymously(auth).catch(e => console.error("Error Auth", e));
+                return onAuthStateChanged(auth, (u) => setUser(u));
+            }, []);
+
+            // 2. Conexión DB
+            useEffect(() => {
+                if (!user) return;
+                // CORRECCIÓN: Ruta de Firestore SIMPLE: Colección/Documento (2 segmentos)
+                const menuRef = doc(db, 'restaurante', 'menu');
+
+                const unsubscribe = onSnapshot(menuRef, async (snapshot) => {
+                    if (snapshot.exists()) {
+                        setMenuData(snapshot.data().items);
+                        setLoading(false);
+                    } else {
+                        try {
+                            await setDoc(menuRef, { items: INITIAL_MENU_DATA });
+                        } catch (e) {
+                            console.error("Error creando datos iniciales", e);
+                        }
+                    }
+                }, (error) => {
+                    console.error("Error obteniendo menú:", error);
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, [user]);
+
+            // Guardar en Cloud
+            const saveToCloud = async (newData) => {
+                if (!user) return;
+                try {
+                    setMenuData(newData); 
+                    // CORRECCIÓN: Usar la misma ruta simple aquí
+                    const menuRef = doc(db, 'restaurante', 'menu');
+                    await setDoc(menuRef, { items: newData }, { merge: true });
+                } catch (e) {
+                    console.error("Error guardando", e);
+                    alert("Error de conexión al guardar.");
+                }
+            };
+
+            // UI Helpers
+            const toggleCategory = (cat) => setOpenCategory(openCategory === cat ? null : cat);
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (passwordInput === "MaximilianoLopezP") {
+                    setIsAdmin(true); setShowLogin(false); setPasswordInput(""); setLoginError(false);
+                } else {
+                    setLoginError(true);
+                }
+            };
+
+            // CRUD
+            const updateItem = (catIndex, itemIndex, field, value) => {
+                const newData = JSON.parse(JSON.stringify(menuData));
+                const item = newData[catIndex].items[itemIndex];
+                item[field] = field === 'price' ? (value === '' ? 0 : parseFloat(value)) : value;
+                saveToCloud(newData);
+            };
+
+            const addItem = (catIndex) => {
+                const newData = JSON.parse(JSON.stringify(menuData));
+                newData[catIndex].items.push({ name: "Nuevo Plato", description: "...", price: 0 });
+                saveToCloud(newData);
+            };
+
+            const deleteItem = (catIndex, itemIndex) => {
+                if (confirm("¿Eliminar plato?")) {
+                    const newData = JSON.parse(JSON.stringify(menuData));
+                    newData[catIndex].items.splice(itemIndex, 1);
+                    saveToCloud(newData);
+                }
+            };
+
+            const deleteCategory = (catIndex) => {
+                if (confirm("¿Eliminar categoría completa?")) {
+                    const newData = JSON.parse(JSON.stringify(menuData));
+                    newData.splice(catIndex, 1);
+                    saveToCloud(newData);
+                }
+            };
+
+            const toggleCategoryVisibility = (catIndex, e) => {
+                e.stopPropagation();
+                const newData = JSON.parse(JSON.stringify(menuData));
+                newData[catIndex].visible = !newData[catIndex].visible;
+                saveToCloud(newData);
+            };
+
+            const handleAddCategory = () => {
+                if (!newCatName.trim()) return;
+                const newData = JSON.parse(JSON.stringify(menuData));
+                newData.push({ category: newCatName, type: newCatType, visible: true, items: [{ name: "Ejemplo", description: "...", price: 0 }] });
+                saveToCloud(newData);
+                setShowAddCatModal(false); setNewCatName(""); setNewCatType("burger");
+                setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
+            };
+
+            if (loading) return (
+                <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-amber-500 gap-4">
+                    <Loader2 className="w-10 h-10 animate-spin" />
+                    <p className="font-serif tracking-widest text-sm animate-pulse">CARGANDO MENÚ...</p>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-amber-500 selection:text-black">
+                    {isAdmin && (
+                        <div className="sticky top-0 z-50 bg-amber-600 text-white p-3 shadow-lg flex justify-between items-center px-4 border-b border-amber-400">
+                            <span className="font-bold text-sm uppercase tracking-wider flex items-center gap-2"><Settings className="w-5 h-5" /> Modo Editor (En Vivo)</span>
+                            <button onClick={() => setIsAdmin(false)} className="text-xs bg-green-600/80 hover:bg-green-700 text-white px-3 py-1.5 rounded flex items-center gap-1 font-bold"><Save className="w-3 h-3" /> Salir</button>
+                        </div>
+                    )}
+
+                    <header className="relative w-full py-12 px-6 bg-gradient-to-b from-zinc-900 to-zinc-950 border-b border-amber-500/20">
+                        <div className="max-w-3xl mx-auto text-center flex flex-col items-center">
+                            <div className="inline-block p-4 rounded-full bg-zinc-900 border border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.3)]"><MargaritaIcon className="w-16 h-16 text-amber-500" /></div>
+                            <h1 className="text-4xl md:text-6xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 tracking-tight mt-2">MARGARITA</h1>
+                            <p className="text-amber-500/80 tracking-[0.2em] text-sm md:text-base uppercase font-medium mt-3">Restaurant & Lounge</p>
+                        </div>
+                    </header>
+
+                    <main className="max-w-3xl mx-auto px-4 py-8 pb-24">
+                        <div className="space-y-4">
+                            {menuData.map((section, idx) => {
+                                if (!isAdmin && section.visible === false) return null;
+                                const isOpen = openCategory === section.category;
+                                let itemsToRender = section.items;
+                                if (!isAdmin) itemsToRender = [...section.items].sort((a, b) => a.price - b.price);
+                                const containerClass = section.visible ? (isOpen ? 'border-amber-500/50 bg-zinc-900/50' : 'border-zinc-800 bg-zinc-900') : 'border-zinc-700 border-dashed bg-zinc-900/20 opacity-75';
+
+                                return (
+                                    <div key={idx} className={`overflow-hidden rounded-xl transition-all duration-300 border ${containerClass}`}>
+                                        <div className="flex w-full relative">
+                                            <button onClick={() => toggleCategory(section.category)} className="flex-grow flex items-center justify-between p-5 text-left focus:outline-none group">
+                                                <div className="flex items-center gap-4">
+                                                    <span className={`p-2 rounded-lg transition-colors ${isOpen ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-amber-500 group-hover:bg-zinc-700'}`}>{getIconByType(section.type)}</span>
+                                                    <span className="text-xl font-medium tracking-wide text-zinc-100 flex items-center gap-2">{section.category} {isAdmin && !section.visible && <span className="text-xs px-2 py-0.5 rounded bg-zinc-700 text-zinc-400 uppercase font-bold tracking-wider">Oculto</span>}</span>
+                                                </div>
+                                                {isOpen ? <ChevronUp className="w-5 h-5 text-amber-500" /> : <ChevronDown className="w-5 h-5 text-zinc-500 group-hover:text-amber-500" />}
+                                            </button>
+                                            {isAdmin && (
+                                                <div className="absolute right-14 top-5 flex gap-2 z-10">
+                                                    <button onClick={(e) => toggleCategoryVisibility(idx, e)} className={`p-1 rounded hover:bg-zinc-700 ${section.visible ? 'text-green-500' : 'text-zinc-500'}`}>{section.visible ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}</button>
+                                                    <button onClick={(e) => { e.stopPropagation(); deleteCategory(idx); }} className="p-1 text-red-500 hover:bg-red-500/10 rounded"><Trash2 className="w-5 h-5" /></button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className={`transition-[max-height,opacity] duration-300 ease-in-out ${isOpen ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                            <div className="px-5 pb-5 pt-2 space-y-4">
+                                                <div className="h-px w-full bg-gradient-to-r from-transparent via-zinc-700 to-transparent mb-4"></div>
+                                                {itemsToRender.map((item, i) => (
+                                                    <div key={i} className={`flex justify-between items-start group/item ${isAdmin ? 'bg-zinc-800/50 p-3 rounded border border-zinc-700 mb-2' : ''}`}>
+                                                        {isAdmin ? (
+                                                            <div className="w-full flex flex-col gap-2">
+                                                                <div className="flex justify-between gap-2">
+                                                                    <input type="text" value={item.name} onChange={(e) => updateItem(idx, i, 'name', e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded p-1 text-amber-500 font-bold w-full focus:border-amber-500 outline-none" />
+                                                                    <button onClick={() => deleteItem(idx, i)} className="text-red-500 hover:bg-red-500/20 p-2 rounded"><Trash2 className="w-5 h-5" /></button>
+                                                                </div>
+                                                                <textarea value={item.description} onChange={(e) => updateItem(idx, i, 'description', e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded p-1 text-xs text-zinc-300 w-full focus:border-amber-500 outline-none resize-none" rows="2" />
+                                                                <div className="flex items-center gap-2 justify-end"><span className="text-zinc-500 text-sm">Precio $</span><input type="number" value={item.price} onChange={(e) => updateItem(idx, i, 'price', e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded p-1 text-amber-500 w-24 text-right focus:border-amber-500 outline-none" /></div>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="pr-4"><h3 className="text-lg font-medium text-amber-50 group-hover/item:text-amber-400 transition-colors">{item.name}</h3>{item.description && <p className="text-sm text-zinc-400 mt-1 font-light leading-relaxed">{item.description}</p>}</div>
+                                                                <div className="flex flex-col items-end min-w-[3rem]"><span className="text-lg font-bold text-amber-500 tabular-nums">${item.price % 1 === 0 ? item.price : item.price.toFixed(1)}</span></div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {isAdmin && <button onClick={() => addItem(idx)} className="w-full py-2 mt-4 border-2 border-dashed border-zinc-700 text-zinc-500 hover:border-amber-500 hover:text-amber-500 rounded-lg flex items-center justify-center gap-2 font-medium"><Plus className="w-4 h-4" /> Agregar Plato</button>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {isAdmin && <button onClick={() => setShowAddCatModal(true)} className="w-full py-4 mt-8 border-2 border-dashed border-amber-500/50 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 rounded-xl flex items-center justify-center gap-3 font-bold text-lg"><Plus className="w-6 h-6" /> AGREGAR NUEVA CATEGORÍA</button>}
+                        </div>
+                    </main>
+
+                    <footer className="bg-zinc-900 border-t border-zinc-800 py-10 mt-12 relative">
+                        <div className="max-w-3xl mx-auto px-6 text-center space-y-6">
+                            <div className="flex justify-center items-center gap-8">
+                                <a href="#" className="flex flex-col items-center gap-2 text-zinc-400 hover:text-amber-500 transition-colors"><div className="p-3 bg-zinc-800 rounded-full"><Instagram className="w-6 h-6" /></div><span className="text-sm">@Margaritabqto</span></a>
+                                <a href="tel:04245060221" className="flex flex-col items-center gap-2 text-zinc-400 hover:text-amber-500 transition-colors"><div className="p-3 bg-zinc-800 rounded-full"><Phone className="w-6 h-6" /></div><span className="text-sm">0424-5060221</span></a>
+                            </div>
+                            <div className="h-px w-24 bg-amber-500/30 mx-auto"></div>
+                            <p className="text-xs text-zinc-600">Margarita Restaurant &copy; {new Date().getFullYear()}<br /><span className="text-amber-900/60 mt-1 block">Bebidas alcohólicas solo para mayores de 18 años.</span></p>
+                            <div className="absolute bottom-4 right-4"><button onClick={() => setShowLogin(true)} className="text-zinc-800 hover:text-zinc-600 transition-colors p-2"><Settings className="w-4 h-4" /></button></div>
+                        </div>
+                    </footer>
+
+                    {showLogin && !isAdmin && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] px-4">
+                            <div className="bg-zinc-900 border border-zinc-700 p-6 rounded-xl w-full max-w-sm shadow-2xl relative">
+                                <button onClick={() => setShowLogin(false)} className="absolute top-3 right-3 text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>
+                                <div className="text-center mb-6"><div className="inline-block p-3 bg-zinc-800 rounded-full mb-3 text-amber-500"><Lock className="w-6 h-6" /></div><h3 className="text-xl font-bold text-white">Administrador</h3></div>
+                                <form onSubmit={handleLogin} className="space-y-4"><input type="password" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 outline-none" placeholder="Contraseña" autoFocus />{loginError && <p className="text-red-500 text-xs text-center">Contraseña incorrecta</p>}<button type="submit" className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-lg transition-colors">Ingresar</button></form>
+                            </div>
+                        </div>
+                    )}
+
+                    {showAddCatModal && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] px-4">
+                            <div className="bg-zinc-900 border border-zinc-700 p-6 rounded-xl w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                                <button onClick={() => setShowAddCatModal(false)} className="absolute top-3 right-3 text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>
+                                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-amber-500" /> Nueva Categoría</h3>
+                                <div className="space-y-4">
+                                    <div><label className="block text-xs text-zinc-400 mb-1">Nombre</label><input type="text" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 outline-none" placeholder="Ej: Hamburguesas" autoFocus /></div>
+                                    <div>
+                                        <label className="block text-xs text-zinc-400 mb-2">Icono</label>
+                                        <div className="grid grid-cols-4 gap-2">{CATEGORY_TYPES.map((type) => (<button key={type.id} onClick={() => setNewCatType(type.id)} className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${newCatType === type.id ? 'bg-amber-500 text-black border-amber-500' : 'bg-zinc-950 text-zinc-500 border-zinc-800 hover:border-zinc-600'}`}>{React.createElement(type.icon, {className: "w-6 h-6"})}<span className="text-[10px] mt-1 truncate w-full text-center">{type.label}</span></button>))}</div>
+                                    </div>
+                                    <button onClick={handleAddCategory} disabled={!newCatName.trim()} className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold py-3 rounded-lg mt-2">Crear</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
